@@ -1,0 +1,78 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0a0c10;
+  font-family: 'Segoe UI', Consolas, monospace;
+}
+
+#game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+#controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.control-btn {
+  background: linear-gradient(135deg, #1a1d26 0%, #282c3a 100%);
+  border: 2px solid #3a4055;
+  border-radius: 8px;
+  color: #e6ebf5;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-family: 'Segoe UI', Consolas, monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-btn:hover {
+  background: linear-gradient(135deg, #252a38 0%, #3a4055 100%);
+  border-color: #6eb4ff;
+  box-shadow: 0 0 20px rgba(110, 180, 255, 0.25);
+}
+
+.control-btn:active {
+  transform: scale(0.98);
+}
+
+#mode-toggle {
+  min-width: 200px;
+}
+
+.toggle-label {
+  color: #8a90a0;
+}
+
+#mode-text {
+  font-weight: bold;
+  color: #6eb4ff;
+}
+
+#mode-text.vertical {
+  color: #46d278;
+}
+
+#game-canvas {
+  border: 2px solid #282c3a;
+  border-radius: 4px;
+  box-shadow: 0 0 40px rgba(110, 180, 255, 0.15);
+}

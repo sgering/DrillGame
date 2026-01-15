@@ -1,0 +1,20 @@
+{
+  "name": "drill-pilot",
+  "version": "1.0.0",
+  "description": "Drill Pilot - A 2D drilling game where you follow the planned drill trace",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "keywords": ["game", "drilling", "canvas", "typescript"],
+  "author": "",
+  "license": "MIT"
+}

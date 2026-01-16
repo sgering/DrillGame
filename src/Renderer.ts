@@ -147,6 +147,136 @@ export class Renderer {
     this.ctx.stroke();
   }
 
+  drawPlannedDrillholeLabels(
+    state: GameState,
+    camX: number,
+    camY: number,
+    yMin: number,
+    yMax: number,
+    xMin: number,
+    xMax: number
+  ): void {
+    const isVertical = state.verticalMode;
+    
+    // Calculate drill rig size for proper label offset
+    const imgScale = 0.12;
+    const drillRigWidth = this.drillRigImage ? this.drillRigImage.width * imgScale : 0;
+    
+    if (isVertical) {
+      // Check if collar (start at Y_START) is visible
+      if (Y_START >= yMin - 20 && Y_START <= yMax + 20) {
+        const plannedX = state.plan.x(Y_START);
+        const [sx, sy] = worldToScreen(plannedX, Y_START, camX, camY, true);
+        // In vertical mode, drill rig extends above, so position label further up
+        const extraOffset = drillRigWidth + 20; // Rotated, so width becomes vertical extent
+        this.drawPlanLabel('Planned Collar', sx, sy, 'top', extraOffset);
+      }
+      
+      // Check if toe (end at Y_END) is visible
+      if (Y_END >= yMin - 20 && Y_END <= yMax + 20) {
+        const plannedX = state.plan.x(Y_END);
+        const [sx, sy] = worldToScreen(plannedX, Y_END, camX, camY, true);
+        this.drawPlanLabel('Planned Toe', sx, sy, 'bottom', 0);
+      }
+    } else {
+      // Check if collar (start at X_START) is visible
+      if (X_START >= xMin - 20 && X_START <= xMax + 20) {
+        const plannedY = state.plan.y(X_START);
+        const [sx, sy] = worldToScreen(X_START, plannedY, camX, camY, false);
+        // In horizontal mode, drill rig extends to the left
+        const extraOffset = drillRigWidth + 30;
+        this.drawPlanLabel('Planned Collar', sx, sy, 'left', extraOffset);
+      }
+      
+      // Check if toe (end at X_END) is visible
+      if (X_END >= xMin - 20 && X_END <= xMax + 20) {
+        const plannedY = state.plan.y(X_END);
+        const [sx, sy] = worldToScreen(X_END, plannedY, camX, camY, false);
+        this.drawPlanLabel('Planned Toe', sx, sy, 'right', 0);
+      }
+    }
+  }
+
+  private drawPlanLabel(text: string, x: number, y: number, position: 'top' | 'bottom' | 'left' | 'right', extraOffset: number = 0): void {
+    this.ctx.font = 'bold 13px Consolas, "Courier New", monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    // Calculate text dimensions for background
+    const metrics = this.ctx.measureText(text);
+    const textWidth = metrics.width;
+    const textHeight = 13;
+    const padding = 6;
+
+    // Position offset from the point
+    let offsetX = 0;
+    let offsetY = 0;
+    
+    switch (position) {
+      case 'top':
+        // Position further above to avoid drill rig overlap
+        // Base offset plus any extra offset for drill rig
+        offsetY = -(30 + extraOffset);
+        break;
+      case 'bottom':
+        offsetY = 30 + extraOffset;
+        break;
+      case 'left':
+        // Position further left to avoid drill rig overlap in horizontal mode
+        offsetX = -(70 + extraOffset);
+        break;
+      case 'right':
+        offsetX = 70 + extraOffset;
+        break;
+    }
+
+    const labelX = x + offsetX;
+    const labelY = y + offsetY;
+
+    // Draw background rectangle with slight transparency
+    this.ctx.fillStyle = 'rgba(0, 20, 30, 0.85)';
+    this.ctx.fillRect(
+      labelX - textWidth / 2 - padding,
+      labelY - textHeight / 2 - padding,
+      textWidth + padding * 2,
+      textHeight + padding * 2
+    );
+
+    // Draw border with cyan glow to match the plan line
+    this.ctx.strokeStyle = colorToRgb(PLAN);
+    this.ctx.lineWidth = 1.5;
+    this.ctx.shadowBlur = 4;
+    this.ctx.shadowColor = colorToRgb(PLAN);
+    this.ctx.strokeRect(
+      labelX - textWidth / 2 - padding,
+      labelY - textHeight / 2 - padding,
+      textWidth + padding * 2,
+      textHeight + padding * 2
+    );
+    this.ctx.shadowBlur = 0;
+
+    // Draw connecting line from label to point
+    this.ctx.strokeStyle = colorToRgba(PLAN, 0.6);
+    this.ctx.lineWidth = 1.5;
+    this.ctx.setLineDash([3, 3]); // Dashed line
+    this.ctx.beginPath();
+    this.ctx.moveTo(x, y);
+    this.ctx.lineTo(labelX, labelY);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]); // Reset to solid line
+
+    // Draw text with cyan color to match plan line
+    this.ctx.fillStyle = colorToRgb(PLAN);
+    this.ctx.shadowBlur = 3;
+    this.ctx.shadowColor = colorToRgb(PLAN);
+    this.ctx.fillText(text, labelX, labelY);
+    this.ctx.shadowBlur = 0;
+    
+    // Reset text alignment
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'alphabetic';
+  }
+
   drawActualPath(
     state: GameState,
     camX: number,
@@ -557,6 +687,9 @@ export class Renderer {
     
     // Draw plan line
     this.drawPlanLine(planLine);
+    
+    // Draw planned drillhole labels (Collar and Toe) only when visible
+    this.drawPlannedDrillholeLabels(state, camX, camY, yMin, yMax, xMin, xMax);
     
     // Draw actual path
     this.drawActualPath(state, camX, camY, xMin, xMax, yMin, yMax);

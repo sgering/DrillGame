@@ -213,7 +213,6 @@ export class Renderer {
     // Calculate drill rig size for proper label offset
     const imgScale = 0.12;
     const drillRigWidth = this.drillRigImage ? this.drillRigImage.width * imgScale : 0;
-    const drillRigHeight = this.drillRigImage ? this.drillRigImage.height * imgScale : 0;
     
     if (isVertical) {
       // Check if collar (start at Y_START) is visible

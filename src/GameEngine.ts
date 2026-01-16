@@ -38,7 +38,6 @@ export class GameEngine {
   private onModeChange?: ModeChangeCallback;
   private countdownActive: boolean = false;
   private countdownMessage: string = '';
-  private countdownStartTime: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);

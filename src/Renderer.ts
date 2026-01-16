@@ -658,7 +658,7 @@ export class Renderer {
     this.ctx.textAlign = 'left';
   }
 
-  render(state: GameState): void {
+  render(state: GameState, countdownActive: boolean = false, countdownMessage: string = ''): void {
     this.clear();
     this.drawGrid();
 
@@ -716,9 +716,37 @@ export class Renderer {
     // Draw banner
     this.drawBanner(state, dev);
 
-    // Draw end report overlay if game is over
-    if (state.finished || state.failed) {
+    // Draw countdown overlay if active (takes priority over end report)
+    if (countdownActive && countdownMessage) {
+      this.drawCountdown(countdownMessage);
+    } else if (state.finished || state.failed) {
+      // Draw end report overlay if game is over (but not during countdown)
       this.drawEndReport(state);
     }
+  }
+
+  private drawCountdown(message: string): void {
+    // Semi-transparent overlay
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Draw large centered message
+    this.ctx.font = 'bold 48px Consolas, "Courier New", monospace';
+    this.ctx.fillStyle = colorToRgb(PLAN);
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    // Add glow effect
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowColor = colorToRgb(PLAN);
+    
+    this.ctx.fillText(message, WIDTH / 2, HEIGHT / 2);
+    
+    // Reset shadow
+    this.ctx.shadowBlur = 0;
+    
+    // Reset text alignment
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'alphabetic';
   }
 }

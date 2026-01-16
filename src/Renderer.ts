@@ -29,7 +29,7 @@ export class Renderer {
     this.drillRigImage.onload = () => {
       this.drillRigLoaded = true;
     };
-    this.drillRigImage.src = '/drill-rig.png';
+    this.drillRigImage.src = './drill-rig.png';
   }
 
   clear(): void {

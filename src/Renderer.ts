@@ -1,6 +1,6 @@
 import {
   WIDTH, HEIGHT,
-  BG, GRID, PLAN, ACTUAL, TIGHT, OK, BAD, TEXT,
+  PLAN, ACTUAL, TIGHT, OK, BAD, TEXT, ORE_HIGHLIGHT,
   TOL_TIGHT, TOL_OK, MAX_OUTSIDE_SECONDS,
   X_START, X_END, Y_START, Y_END,
   CAMERA_LOOKAHEAD,
@@ -12,6 +12,8 @@ import type { Point, Color } from './types';
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private drillRigImage: HTMLImageElement | null = null;
+  private drillRigLoaded: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -21,30 +23,63 @@ export class Renderer {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
+
+    // Load drill rig image
+    this.drillRigImage = new Image();
+    this.drillRigImage.onload = () => {
+      this.drillRigLoaded = true;
+    };
+    this.drillRigImage.src = '/drill-rig.png';
   }
 
   clear(): void {
-    this.ctx.fillStyle = colorToRgb(BG);
+    // Create rock texture background
+    const gradient = this.ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    gradient.addColorStop(0, '#2a2520');
+    gradient.addColorStop(0.5, '#1a1612');
+    gradient.addColorStop(1, '#252018');
+    this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    
+    // Add noise texture for rock face feel
+    this.addRockTexture();
+  }
+
+  private addRockTexture(): void {
+    // Create subtle noise pattern
+    const imageData = this.ctx.getImageData(0, 0, WIDTH, HEIGHT);
+    const data = imageData.data;
+    
+    // Simple noise - much faster than full Perlin
+    for (let i = 0; i < data.length; i += 4) {
+      const noise = (Math.random() - 0.5) * 15; // ±7.5 brightness variation
+      data[i] += noise;     // R
+      data[i + 1] += noise; // G
+      data[i + 2] += noise; // B
+    }
+    
+    this.ctx.putImageData(imageData, 0, 0);
   }
 
   drawGrid(): void {
-    this.ctx.strokeStyle = colorToRgb(GRID);
+    // Draw faint stratification lines (rock layers)
+    this.ctx.strokeStyle = 'rgba(80, 70, 60, 0.15)';
     this.ctx.lineWidth = 1;
     
-    // Vertical grid lines
-    for (let x = 0; x < WIDTH; x += 80) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, HEIGHT);
-      this.ctx.stroke();
-    }
-    
-    // Horizontal grid lines
-    for (let y = 0; y < HEIGHT; y += 80) {
+    // Horizontal stratification lines (rock layers)
+    for (let y = 0; y < HEIGHT; y += 120) {
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
       this.ctx.lineTo(WIDTH, y);
+      this.ctx.stroke();
+    }
+    
+    // Very faint vertical lines (rock fractures)
+    this.ctx.strokeStyle = 'rgba(70, 60, 50, 0.08)';
+    for (let x = 0; x < WIDTH; x += 200) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, HEIGHT);
       this.ctx.stroke();
     }
   }
@@ -76,13 +111,16 @@ export class Renderer {
         tightRight.push(worldToScreen(px + TOL_TIGHT, y, camX, camY, true));
       }
 
-      // Draw OK corridor
+      // Draw OK corridor (acceptable rock - neutral)
       if (okLeft.length >= 2) {
-        this.drawPolygon([...okLeft, ...okRight.reverse()], OK, 0.14);
+        this.drawPolygon([...okLeft, ...okRight.reverse()], OK, 0.25);
       }
-      // Draw tight corridor
+      // Draw tight corridor (ore vein - golden with sparkle)
       if (tightLeft.length >= 2) {
-        this.drawPolygon([...tightLeft, ...tightRight.reverse()], TIGHT, 0.22);
+        const tightPoly = [...tightLeft, ...tightRight.reverse()];
+        this.drawPolygon(tightPoly, TIGHT, 0.35);
+        // Add ore vein highlights
+        this.drawOreVeins(tightPoly, true);
       }
     } else {
       const okUpper: Point[] = [];
@@ -99,13 +137,16 @@ export class Renderer {
         tightLower.push(worldToScreen(x, py - TOL_TIGHT, camX, camY, false));
       }
 
-      // Draw OK corridor
+      // Draw OK corridor (acceptable rock - neutral)
       if (okUpper.length >= 2) {
-        this.drawPolygon([...okUpper, ...okLower.reverse()], OK, 0.14);
+        this.drawPolygon([...okUpper, ...okLower.reverse()], OK, 0.25);
       }
-      // Draw tight corridor
+      // Draw tight corridor (ore vein - golden with sparkle)
       if (tightUpper.length >= 2) {
-        this.drawPolygon([...tightUpper, ...tightLower.reverse()], TIGHT, 0.22);
+        const tightPoly = [...tightUpper, ...tightLower.reverse()];
+        this.drawPolygon(tightPoly, TIGHT, 0.35);
+        // Add ore vein highlights
+        this.drawOreVeins(tightPoly, false);
       }
     }
 
@@ -125,17 +166,168 @@ export class Renderer {
     this.ctx.fill();
   }
 
+  private drawOreVeins(poly: Point[], _isVertical: boolean): void {
+    // Add subtle ore vein sparkles
+    const numSparkles = Math.floor(poly.length / 20);
+    for (let i = 0; i < numSparkles; i++) {
+      const idx = Math.floor((i / numSparkles) * poly.length / 2);
+      const point = poly[idx];
+      if (!point) continue;
+      
+      // Draw small sparkle
+      this.ctx.fillStyle = colorToRgba(ORE_HIGHLIGHT, 0.4);
+      this.ctx.beginPath();
+      this.ctx.arc(point[0], point[1], 2, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+  }
+
   drawPlanLine(planLine: Point[]): void {
     if (planLine.length < 2) return;
     
-    this.ctx.strokeStyle = colorToRgb(PLAN);
-    this.ctx.lineWidth = 3;
+    // Draw laser survey trace - thin glowing cyan line
+    this.ctx.strokeStyle = colorToRgba(PLAN, 0.8);
+    this.ctx.lineWidth = 2;
+    this.ctx.shadowBlur = 8;
+    this.ctx.shadowColor = colorToRgb(PLAN);
     this.ctx.beginPath();
     this.ctx.moveTo(planLine[0][0], planLine[0][1]);
     for (let i = 1; i < planLine.length; i++) {
       this.ctx.lineTo(planLine[i][0], planLine[i][1]);
     }
     this.ctx.stroke();
+    this.ctx.shadowBlur = 0; // Reset shadow
+  }
+
+  drawPlannedDrillholeLabels(
+    state: GameState,
+    camX: number,
+    camY: number,
+    yMin: number,
+    yMax: number,
+    xMin: number,
+    xMax: number
+  ): void {
+    const isVertical = state.verticalMode;
+    
+    // Calculate drill rig size for proper label offset
+    const imgScale = 0.12;
+    const drillRigWidth = this.drillRigImage ? this.drillRigImage.width * imgScale : 0;
+    const drillRigHeight = this.drillRigImage ? this.drillRigImage.height * imgScale : 0;
+    
+    if (isVertical) {
+      // Check if collar (start at Y_START) is visible
+      if (Y_START >= yMin - 20 && Y_START <= yMax + 20) {
+        const plannedX = state.plan.x(Y_START);
+        const [sx, sy] = worldToScreen(plannedX, Y_START, camX, camY, true);
+        // In vertical mode, drill rig extends above, so position label further up
+        const extraOffset = drillRigWidth + 20; // Rotated, so width becomes vertical extent
+        this.drawPlanLabel('Planned Collar', sx, sy, 'top', extraOffset);
+      }
+      
+      // Check if toe (end at Y_END) is visible
+      if (Y_END >= yMin - 20 && Y_END <= yMax + 20) {
+        const plannedX = state.plan.x(Y_END);
+        const [sx, sy] = worldToScreen(plannedX, Y_END, camX, camY, true);
+        this.drawPlanLabel('Planned Toe', sx, sy, 'bottom', 0);
+      }
+    } else {
+      // Check if collar (start at X_START) is visible
+      if (X_START >= xMin - 20 && X_START <= xMax + 20) {
+        const plannedY = state.plan.y(X_START);
+        const [sx, sy] = worldToScreen(X_START, plannedY, camX, camY, false);
+        // In horizontal mode, drill rig extends to the left
+        const extraOffset = drillRigWidth + 30;
+        this.drawPlanLabel('Planned Collar', sx, sy, 'left', extraOffset);
+      }
+      
+      // Check if toe (end at X_END) is visible
+      if (X_END >= xMin - 20 && X_END <= xMax + 20) {
+        const plannedY = state.plan.y(X_END);
+        const [sx, sy] = worldToScreen(X_END, plannedY, camX, camY, false);
+        this.drawPlanLabel('Planned Toe', sx, sy, 'right', 0);
+      }
+    }
+  }
+
+  private drawPlanLabel(text: string, x: number, y: number, position: 'top' | 'bottom' | 'left' | 'right', extraOffset: number = 0): void {
+    this.ctx.font = 'bold 13px Consolas, "Courier New", monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    // Calculate text dimensions for background
+    const metrics = this.ctx.measureText(text);
+    const textWidth = metrics.width;
+    const textHeight = 13;
+    const padding = 6;
+
+    // Position offset from the point
+    let offsetX = 0;
+    let offsetY = 0;
+    
+    switch (position) {
+      case 'top':
+        // Position further above to avoid drill rig overlap
+        // Base offset plus any extra offset for drill rig
+        offsetY = -(30 + extraOffset);
+        break;
+      case 'bottom':
+        offsetY = 30 + extraOffset;
+        break;
+      case 'left':
+        // Position further left to avoid drill rig overlap in horizontal mode
+        offsetX = -(70 + extraOffset);
+        break;
+      case 'right':
+        offsetX = 70 + extraOffset;
+        break;
+    }
+
+    const labelX = x + offsetX;
+    const labelY = y + offsetY;
+
+    // Draw background rectangle with slight transparency
+    this.ctx.fillStyle = 'rgba(0, 20, 30, 0.85)';
+    this.ctx.fillRect(
+      labelX - textWidth / 2 - padding,
+      labelY - textHeight / 2 - padding,
+      textWidth + padding * 2,
+      textHeight + padding * 2
+    );
+
+    // Draw border with cyan glow to match the plan line
+    this.ctx.strokeStyle = colorToRgb(PLAN);
+    this.ctx.lineWidth = 1.5;
+    this.ctx.shadowBlur = 4;
+    this.ctx.shadowColor = colorToRgb(PLAN);
+    this.ctx.strokeRect(
+      labelX - textWidth / 2 - padding,
+      labelY - textHeight / 2 - padding,
+      textWidth + padding * 2,
+      textHeight + padding * 2
+    );
+    this.ctx.shadowBlur = 0;
+
+    // Draw connecting line from label to point
+    this.ctx.strokeStyle = colorToRgba(PLAN, 0.6);
+    this.ctx.lineWidth = 1.5;
+    this.ctx.setLineDash([3, 3]); // Dashed line
+    this.ctx.beginPath();
+    this.ctx.moveTo(x, y);
+    this.ctx.lineTo(labelX, labelY);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]); // Reset to solid line
+
+    // Draw text with cyan color to match plan line
+    this.ctx.fillStyle = colorToRgb(PLAN);
+    this.ctx.shadowBlur = 3;
+    this.ctx.shadowColor = colorToRgb(PLAN);
+    this.ctx.fillText(text, labelX, labelY);
+    this.ctx.shadowBlur = 0;
+    
+    // Reset text alignment
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'alphabetic';
   }
 
   drawActualPath(
@@ -163,14 +355,74 @@ export class Renderer {
     }
 
     if (visibleActual.length >= 2) {
-      this.ctx.strokeStyle = colorToRgb(ACTUAL);
-      this.ctx.lineWidth = 3;
+      // Draw carved tunnel - wider with rough edges
+      // Outer darker edge
+      this.ctx.strokeStyle = 'rgba(60, 50, 40, 0.6)';
+      this.ctx.lineWidth = 8;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineJoin = 'round';
       this.ctx.beginPath();
       this.ctx.moveTo(visibleActual[0][0], visibleActual[0][1]);
       for (let i = 1; i < visibleActual.length; i++) {
         this.ctx.lineTo(visibleActual[i][0], visibleActual[i][1]);
       }
       this.ctx.stroke();
+      
+      // Inner carved tunnel
+      this.ctx.strokeStyle = colorToRgba(ACTUAL, 0.9);
+      this.ctx.lineWidth = 5;
+      this.ctx.beginPath();
+      this.ctx.moveTo(visibleActual[0][0], visibleActual[0][1]);
+      for (let i = 1; i < visibleActual.length; i++) {
+        this.ctx.lineTo(visibleActual[i][0], visibleActual[i][1]);
+      }
+      this.ctx.stroke();
+    }
+  }
+
+  drawDrillRig(state: GameState, camX: number, camY: number): void {
+    if (!this.drillRigLoaded || !this.drillRigImage) return;
+
+    // Get the starting position of the drill hole
+    let startX: number, startY: number;
+    if (state.verticalMode) {
+      // Vertical mode: drill starts at top (Y_START)
+      const plannedX = state.plan.x(Y_START);
+      [startX, startY] = worldToScreen(plannedX, Y_START, camX, camY, true);
+    } else {
+      // Horizontal mode: drill starts at left (X_START)
+      const plannedY = state.plan.y(X_START);
+      [startX, startY] = worldToScreen(X_START, plannedY, camX, camY, false);
+    }
+
+    // Scale the image to fit nicely
+    const imgScale = 0.12;
+    const imgWidth = this.drillRigImage.width * imgScale;
+    const imgHeight = this.drillRigImage.height * imgScale;
+
+    // Position the drill rig at the start of the hole
+    if (state.verticalMode) {
+      // For vertical mode, position above the start point, rotated to point down
+      this.ctx.save();
+      this.ctx.translate(startX, startY - imgHeight / 2);
+      this.ctx.rotate(Math.PI / 2); // Rotate 90° to point downward
+      this.ctx.drawImage(
+        this.drillRigImage,
+        -imgWidth / 2,
+        -imgHeight / 2,
+        imgWidth,
+        imgHeight
+      );
+      this.ctx.restore();
+    } else {
+      // For horizontal mode, position to the left of the start point
+      this.ctx.drawImage(
+        this.drillRigImage,
+        startX - imgWidth - 10,
+        startY - imgHeight / 2,
+        imgWidth,
+        imgHeight
+      );
     }
   }
 
@@ -224,80 +476,140 @@ export class Renderer {
     const netProfit = state.getNetProfit();
     const accuracy = state.getAccuracyPercent();
 
+    // Draw large "DRILL" watermark in center background
+    this.drawDrillWatermark();
+
     // Left panel - Drilling Info
     const leftLines = [
-      `Mode: ${modeText}`,
       depthText,
       `Deviation: ${dev.toFixed(2).padStart(6)} m`,
       `Heading: ${(state.heading * 180 / Math.PI).toFixed(1).padStart(6)}°`,
       `Outside: ${state.outsideTime.toFixed(1)} / ${MAX_OUTSIDE_SECONDS.toFixed(1)} s`,
+      '',
       controlsText,
     ];
 
-    // Background panel - left
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    this.ctx.fillRect(16, 16, 320, 145);
+    // Background panel - left (darker and more opaque)
+    this.ctx.fillStyle = 'rgba(15, 20, 30, 0.85)';
+    this.ctx.fillRect(16, 16, 280, 165);
+    
+    // Panel border
+    this.ctx.strokeStyle = 'rgba(100, 120, 140, 0.3)';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(16, 16, 280, 165);
 
-    // Text - left panel
-    this.ctx.font = '16px Consolas, "Courier New", monospace';
+    // Mode header with colored dot indicator
+    this.ctx.font = '14px Consolas, "Courier New", monospace';
+    const modeColor = state.verticalMode ? [255, 0, 180] : [0, 200, 255]; // Pink for vertical, cyan for horizontal
+    
+    // Draw dot indicator
+    this.ctx.fillStyle = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+    this.ctx.beginPath();
+    this.ctx.arc(26, 30, 4, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Draw mode text
+    this.ctx.fillStyle = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+    this.ctx.fillText(`MODE: ${modeText}`, 40, 34);
+
+    // Text - left panel data
+    this.ctx.font = '15px Consolas, "Courier New", monospace';
     this.ctx.fillStyle = colorToRgb(TEXT);
     
-    let y0 = 34;
+    let y0 = 58;
     for (const line of leftLines) {
+      if (line === '') {
+        y0 += 10; // Extra spacing
+        continue;
+      }
       this.ctx.fillText(line, 26, y0);
       y0 += 20;
     }
 
     // Right panel - Financial Info
-    const rightX = WIDTH - 300 - 16;
+    const rightX = WIDTH - 280 - 16;
     
-    // Background panel - right
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    this.ctx.fillRect(rightX, 16, 300, 165);
+    // Background panel - right (darker and more opaque)
+    this.ctx.fillStyle = 'rgba(15, 20, 30, 0.85)';
+    this.ctx.fillRect(rightX, 16, 280, 185);
+    
+    // Panel border
+    this.ctx.strokeStyle = 'rgba(100, 120, 140, 0.3)';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(rightX, 16, 280, 185);
 
     // Title
-    this.ctx.font = 'bold 16px Consolas, "Courier New", monospace';
+    this.ctx.font = '14px Consolas, "Courier New", monospace';
     this.ctx.fillStyle = colorToRgb(PLAN);
     this.ctx.fillText('FINANCIALS', rightX + 10, 34);
 
     // Financial data
     this.ctx.font = '15px Consolas, "Courier New", monospace';
     
+    let yPos = 58;
+    
     // Revenue (green)
     this.ctx.fillStyle = colorToRgb(TIGHT);
-    this.ctx.fillText(`Revenue:      ${this.formatMoney(econ.grossRevenue).padStart(10)}`, rightX + 10, 56);
+    this.ctx.fillText(`Revenue:`, rightX + 10, yPos);
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(this.formatMoney(econ.grossRevenue), rightX + 270, yPos);
+    this.ctx.textAlign = 'left';
+    yPos += 20;
     
     // Remediation (red)
     this.ctx.fillStyle = colorToRgb(BAD);
-    this.ctx.fillText(`Remediation: ${this.formatMoney(-econ.remediationCosts).padStart(10)}`, rightX + 10, 76);
+    this.ctx.fillText(`Remediation:`, rightX + 10, yPos);
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(this.formatMoney(-econ.remediationCosts), rightX + 270, yPos);
+    this.ctx.textAlign = 'left';
+    yPos += 20;
     
     // Schedule delay (yellow/orange)
     this.ctx.fillStyle = colorToRgb(OK);
-    this.ctx.fillText(`Sched Delay: ${econ.scheduleVariance.toFixed(1).padStart(7)} sec`, rightX + 10, 96);
-    this.ctx.fillText(`Downstream:  ${this.formatMoney(-econ.downstreamPenalty).padStart(10)}`, rightX + 10, 116);
+    this.ctx.fillText(`Sched Delay:`, rightX + 10, yPos);
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(`${econ.scheduleVariance.toFixed(1)} sec`, rightX + 270, yPos);
+    this.ctx.textAlign = 'left';
+    yPos += 20;
+    
+    this.ctx.fillStyle = colorToRgb(OK);
+    this.ctx.fillText(`Downstream:`, rightX + 10, yPos);
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(this.formatMoney(-econ.downstreamPenalty), rightX + 270, yPos);
+    this.ctx.textAlign = 'left';
+    yPos += 8;
     
     // Separator line
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     this.ctx.beginPath();
-    this.ctx.moveTo(rightX + 10, 126);
-    this.ctx.lineTo(rightX + 290, 126);
+    this.ctx.moveTo(rightX + 10, yPos);
+    this.ctx.lineTo(rightX + 270, yPos);
     this.ctx.stroke();
+    yPos += 20;
     
     // Net profit
     this.ctx.font = 'bold 16px Consolas, "Courier New", monospace';
     this.ctx.fillStyle = netProfit >= 0 ? colorToRgb(TIGHT) : colorToRgb(BAD);
-    this.ctx.fillText(`NET PROFIT:  ${this.formatMoney(netProfit).padStart(10)}`, rightX + 10, 146);
+    this.ctx.fillText(`NET PROFIT:`, rightX + 10, yPos);
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(this.formatMoney(netProfit), rightX + 270, yPos);
+    this.ctx.textAlign = 'left';
+    yPos += 25;
     
     // Accuracy bar
     this.ctx.fillStyle = colorToRgb(TEXT);
     this.ctx.font = '14px Consolas, "Courier New", monospace';
-    this.ctx.fillText(`Accuracy: ${accuracy.toFixed(0)}%`, rightX + 10, 168);
+    this.ctx.fillText(`Accuracy:`, rightX + 10, yPos);
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(`${accuracy.toFixed(0)}%`, rightX + 270, yPos);
+    this.ctx.textAlign = 'left';
+    yPos += 10;
     
     // Draw accuracy bar
-    const barX = rightX + 120;
-    const barWidth = 160;
+    const barX = rightX + 10;
+    const barWidth = 260;
     const barHeight = 10;
-    const barY = 160;
+    const barY = yPos;
     
     // Background
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
@@ -308,6 +620,17 @@ export class Renderer {
     const barColor = accuracy >= 90 ? TIGHT : accuracy >= 75 ? OK : accuracy >= 50 ? OK : BAD;
     this.ctx.fillStyle = colorToRgb(barColor);
     this.ctx.fillRect(barX, barY, fillWidth, barHeight);
+  }
+
+  private drawDrillWatermark(): void {
+    // Draw large "DRILL" text in center background
+    this.ctx.save();
+    this.ctx.font = 'bold 180px Consolas, "Courier New", monospace';
+    this.ctx.fillStyle = 'rgba(40, 50, 60, 0.15)';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('DRILL', WIDTH / 2, HEIGHT / 2);
+    this.ctx.restore();
   }
 
   drawBanner(state: GameState, dev: number): void {
@@ -363,8 +686,11 @@ export class Renderer {
       this.ctx.fillStyle = colorToRgb(BAD);
       this.ctx.fillText('⚠ HOLE ABANDONED - REDRILL REQUIRED ⚠', WIDTH / 2, boxY + 70);
     } else {
-      this.ctx.fillStyle = colorToRgb(TIGHT);
-      this.ctx.fillText('✓ DRILLING COMPLETE', WIDTH / 2, boxY + 70);
+      // Check if net profit exceeds $10,000 for "Nice Job" message
+      const isExcellentProfit = netProfit > 10000;
+      this.ctx.fillStyle = isExcellentProfit ? colorToRgb(TIGHT) : colorToRgb(TIGHT);
+      const statusText = isExcellentProfit ? '✓ DRILLING COMPLETE - Nice Job' : '✓ DRILLING COMPLETE';
+      this.ctx.fillText(statusText, WIDTH / 2, boxY + 70);
     }
 
     this.ctx.textAlign = 'left';
@@ -458,9 +784,17 @@ export class Renderer {
     this.ctx.stroke();
     y += 20;
 
-    // Net profit
+    // Net profit - use green for profits over $10,000
     this.ctx.font = 'bold 18px Consolas, "Courier New", monospace';
-    this.ctx.fillStyle = netProfit >= 0 ? colorToRgb(TIGHT) : colorToRgb(BAD);
+    let profitColor: Color;
+    if (netProfit > 10000) {
+      profitColor = TIGHT; // Green for excellent profit
+    } else if (netProfit >= 0) {
+      profitColor = OK; // Yellow for positive profit
+    } else {
+      profitColor = BAD; // Red for loss
+    }
+    this.ctx.fillStyle = colorToRgb(profitColor);
     this.ctx.fillText('NET PROFIT:', leftCol, y);
     this.ctx.fillText(this.formatMoney(netProfit), rightCol, y);
     y += 35;
@@ -473,7 +807,26 @@ export class Renderer {
     this.ctx.textAlign = 'left';
   }
 
-  render(state: GameState): void {
+  private drawVignette(state: GameState, camX: number, camY: number): void {
+    // Create headlamp vignette - dark edges for tunnel confinement feel
+    const drillHead = worldToScreen(state.x, state.y, camX, camY, state.verticalMode);
+    
+    // Create radial gradient from drill head
+    const gradient = this.ctx.createRadialGradient(
+      drillHead[0], drillHead[1], 100,
+      drillHead[0], drillHead[1], WIDTH * 0.7
+    );
+    
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');       // Clear at center
+    gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.1)');   // Slight darkening
+    gradient.addColorStop(0.8, 'rgba(0, 0, 0, 0.5)');   // Darker edges
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.75)');    // Dark corners
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  }
+
+  render(state: GameState, countdownActive: boolean = false, countdownMessage: string = ''): void {
     this.clear();
     this.drawGrid();
 
@@ -503,11 +856,20 @@ export class Renderer {
     // Draw plan line
     this.drawPlanLine(planLine);
     
+    // Draw planned drillhole labels (Collar and Toe) only when visible
+    this.drawPlannedDrillholeLabels(state, camX, camY, yMin, yMax, xMin, xMax);
+    
     // Draw actual path
     this.drawActualPath(state, camX, camY, xMin, xMax, yMin, yMax);
     
+    // Draw drill rig at the start of the hole
+    this.drawDrillRig(state, camX, camY);
+    
     // Draw drill head
     this.drawDrillHead(state, camX, camY);
+
+    // Apply headlamp vignette for underground feel
+    this.drawVignette(state, camX, camY);
 
     // Calculate deviation for HUD
     let dev: number;
@@ -525,9 +887,37 @@ export class Renderer {
     // Draw banner
     this.drawBanner(state, dev);
 
-    // Draw end report overlay if game is over
-    if (state.finished || state.failed) {
+    // Draw countdown overlay if active (takes priority over end report)
+    if (countdownActive && countdownMessage) {
+      this.drawCountdown(countdownMessage);
+    } else if (state.finished || state.failed) {
+      // Draw end report overlay if game is over (but not during countdown)
       this.drawEndReport(state);
     }
+  }
+
+  private drawCountdown(message: string): void {
+    // Semi-transparent overlay
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Draw large centered message
+    this.ctx.font = 'bold 48px Consolas, "Courier New", monospace';
+    this.ctx.fillStyle = colorToRgb(PLAN);
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    // Add glow effect
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowColor = colorToRgb(PLAN);
+    
+    this.ctx.fillText(message, WIDTH / 2, HEIGHT / 2);
+    
+    // Reset shadow
+    this.ctx.shadowBlur = 0;
+    
+    // Reset text alignment
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'alphabetic';
   }
 }

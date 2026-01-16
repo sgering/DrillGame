@@ -36,11 +36,14 @@ export class GameEngine {
   private lastTime: number = 0;
   private running: boolean = false;
   private onModeChange?: ModeChangeCallback;
+  private countdownActive: boolean = false;
+  private countdownMessage: string = '';
+  private countdownStartTime: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.input = new InputHandler();
-    this.state = GameState.new(false);
+    this.state = GameState.new(true); // Start in vertical mode
   }
 
   start(): void {
@@ -58,13 +61,54 @@ export class GameEngine {
   }
 
   toggleMode(): void {
+    if (this.countdownActive) return; // Don't allow mode toggle during countdown
     const newMode = !this.state.verticalMode;
     this.state = GameState.new(newMode);
     this.onModeChange?.(newMode);
   }
 
   restart(): void {
-    this.state = GameState.new(this.state.verticalMode);
+    this.startCountdown();
+  }
+
+  private async startCountdown(): Promise<void> {
+    if (this.countdownActive) return; // Prevent multiple countdowns
+    
+    this.countdownActive = true;
+    const verticalMode = this.state.verticalMode;
+    
+    // Message 1: Moving drill to position
+    this.countdownMessage = 'Moving drill to position...';
+    await this.wait(1000);
+    
+    // Message 2: Aligning the hole
+    this.countdownMessage = 'Aligning the hole...';
+    await this.wait(1000);
+    
+    // Message 3: Ready
+    this.countdownMessage = 'Ready...';
+    await this.wait(1000);
+    
+    // Message 4: Go!
+    this.countdownMessage = 'Go!';
+    await this.wait(1000);
+    
+    // Reset the game state
+    this.state = GameState.new(verticalMode);
+    this.countdownActive = false;
+    this.countdownMessage = '';
+  }
+
+  private wait(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  isCountdownActive(): boolean {
+    return this.countdownActive;
+  }
+
+  getCountdownMessage(): string {
+    return this.countdownMessage;
   }
 
   isVerticalMode(): boolean {
@@ -80,7 +124,7 @@ export class GameEngine {
 
     this.handleInput();
     this.update(dt);
-    this.renderer.render(this.state);
+    this.renderer.render(this.state, this.countdownActive, this.countdownMessage);
     this.input.clearJustPressed();
 
     requestAnimationFrame(() => this.gameLoop());
@@ -99,6 +143,11 @@ export class GameEngine {
   }
 
   private update(dt: number): void {
+    // Don't update game state during countdown
+    if (this.countdownActive) {
+      return;
+    }
+    
     if (this.state.finished || this.state.failed) {
       return;
     }

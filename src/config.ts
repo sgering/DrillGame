@@ -52,9 +52,10 @@ export const Y_PIXELS_PER_METER = 10.0;  // y amplification for readability
 // Colors (RGB tuples)
 export const BG: [number, number, number] = [16, 18, 24];
 export const GRID: [number, number, number] = [40, 44, 58];
-export const PLAN: [number, number, number] = [110, 180, 255];
-export const ACTUAL: [number, number, number] = [255, 180, 110];
-export const TIGHT: [number, number, number] = [70, 210, 120];
-export const OK: [number, number, number] = [220, 200, 80];
-export const BAD: [number, number, number] = [230, 80, 90];
+export const PLAN: [number, number, number] = [80, 200, 255];  // Cyan laser survey trace
+export const ACTUAL: [number, number, number] = [255, 180, 110];  // Carved tunnel
+export const TIGHT: [number, number, number] = [220, 170, 50];   // Ore gold
+export const OK: [number, number, number] = [120, 110, 95];      // Acceptable rock
+export const BAD: [number, number, number] = [85, 80, 75];       // Waste rock
 export const TEXT: [number, number, number] = [230, 235, 245];
+export const ORE_HIGHLIGHT: [number, number, number] = [255, 200, 80];  // Bright ore veins

@@ -12,6 +12,8 @@ import type { Point, Color } from './types';
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private drillRigImage: HTMLImageElement | null = null;
+  private drillRigLoaded: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -21,6 +23,13 @@ export class Renderer {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
+
+    // Load drill rig image
+    this.drillRigImage = new Image();
+    this.drillRigImage.onload = () => {
+      this.drillRigLoaded = true;
+    };
+    this.drillRigImage.src = '/drill-rig.png';
   }
 
   clear(): void {
@@ -171,6 +180,52 @@ export class Renderer {
         this.ctx.lineTo(visibleActual[i][0], visibleActual[i][1]);
       }
       this.ctx.stroke();
+    }
+  }
+
+  drawDrillRig(state: GameState, camX: number, camY: number): void {
+    if (!this.drillRigLoaded || !this.drillRigImage) return;
+
+    // Get the starting position of the drill hole
+    let startX: number, startY: number;
+    if (state.verticalMode) {
+      // Vertical mode: drill starts at top (Y_START)
+      const plannedX = state.plan.x(Y_START);
+      [startX, startY] = worldToScreen(plannedX, Y_START, camX, camY, true);
+    } else {
+      // Horizontal mode: drill starts at left (X_START)
+      const plannedY = state.plan.y(X_START);
+      [startX, startY] = worldToScreen(X_START, plannedY, camX, camY, false);
+    }
+
+    // Scale the image to fit nicely
+    const imgScale = 0.12;
+    const imgWidth = this.drillRigImage.width * imgScale;
+    const imgHeight = this.drillRigImage.height * imgScale;
+
+    // Position the drill rig at the start of the hole
+    if (state.verticalMode) {
+      // For vertical mode, position above the start point, rotated to point down
+      this.ctx.save();
+      this.ctx.translate(startX, startY - imgHeight / 2);
+      this.ctx.rotate(Math.PI / 2); // Rotate 90° to point downward
+      this.ctx.drawImage(
+        this.drillRigImage,
+        -imgWidth / 2,
+        -imgHeight / 2,
+        imgWidth,
+        imgHeight
+      );
+      this.ctx.restore();
+    } else {
+      // For horizontal mode, position to the left of the start point
+      this.ctx.drawImage(
+        this.drillRigImage,
+        startX - imgWidth - 10,
+        startY - imgHeight / 2,
+        imgWidth,
+        imgHeight
+      );
     }
   }
 
@@ -505,6 +560,9 @@ export class Renderer {
     
     // Draw actual path
     this.drawActualPath(state, camX, camY, xMin, xMax, yMin, yMax);
+    
+    // Draw drill rig at the start of the hole
+    this.drawDrillRig(state, camX, camY);
     
     // Draw drill head
     this.drawDrillHead(state, camX, camY);

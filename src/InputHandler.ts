@@ -14,6 +14,7 @@ export class InputHandler {
     this.keysPressed.add(event.code);
     
     // Prevent default for game keys to avoid scrolling
+    // Note: KeyH is handled separately for help modal
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyT', 'KeyR', 'Escape'].includes(event.code)) {
       event.preventDefault();
     }

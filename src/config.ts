@@ -13,6 +13,7 @@ export const Y_END = 800.0;
 export const FORWARD_SPEED = 60.0;       // meters/sec (constant)
 export const TURN_RATE = 1.35;           // rad/sec applied by up/down (scaled by dt)
 export const HEADING_INERTIA = 8.0;      // higher = slower response (simulates tool lag)
+export const STRAIGHT_INIT_DISTANCE = 60.0;  // meters of straight drilling at start (1 sec)
 
 // Tolerance corridor (meters)
 export const TOL_TIGHT = 4.0;

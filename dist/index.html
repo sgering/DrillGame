@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Drill Pilot</title>
-  <script type="module" crossorigin src="./assets/index-Bb6FajNI.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BpW147Op.css">
+  <title>Drill Pilot</title>
+  <script type="module" crossorigin src="./assets/index-CuXT_R3H.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-GK0lAoUr.css">
 </head>
 <body>
   <div id="game-container">
@@ -15,8 +15,99 @@
         <span id="mode-text">HORIZONTAL</span>
       </button>
       <button id="restart-btn" class="control-btn">Restart (R)</button>
+      <button id="help-btn" class="control-btn">Help (H)</button>
     </div>
     <canvas id="game-canvas"></canvas>
-  </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">DRILL PILOT - HELP</h2>
+        <button id="help-close-x" class="modal-close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-section">
+          <h3 class="text-cyan">Story & Scenario</h3>
+          <p>You are a drill pilot operating a directional drilling rig. Your mission is to drill a precise hole following a planned path through the subsurface. Accuracy matters—drilling within tight tolerances maximizes <strong>revenue</strong> and prevents costly <strong>remediation work</strong>.</p>
+          <p>The drill advances automatically at constant speed. Your job is to steer it left/right (or up/down) to follow the <span class="text-cyan">planned trajectory</span>. Stay inside the tolerance corridor to succeed!</p>
+        </div>
+
+        <div class="help-section">
+          <h3 class="text-cyan">How to Play</h3>
+          <ol>
+            <li>Choose your drilling mode: <strong>HORIZONTAL</strong> (drilling sideways) or <strong>VERTICAL</strong> (drilling downward).</li>
+            <li>The drill starts at the collar (entry point) and advances automatically toward the toe (target depth).</li>
+            <li>Use arrow keys to steer the drill head and keep your <span class="text-orange">actual path</span> aligned with the <span class="text-cyan">planned path</span>.</li>
+            <li>Stay within the <span class="text-yellow">OK corridor</span> (yellow zone). Drill within the <span class="text-green">tight corridor</span> (green zone) for optimal revenue.</li>
+            <li>Avoid staying outside the OK corridor for more than <strong>3.5 seconds</strong>—this will cause the hole to fail and require expensive redrilling.</li>
+            <li>Complete the hole to see your financial performance report, including revenue, costs, and net profit.</li>
+          </ol>
+        </div>
+
+        <div class="help-section">
+          <h3 class="text-cyan">Controls</h3>
+          <div class="controls-grid">
+            <div class="control-item">
+              <kbd class="control-key text-yellow">← →</kbd>
+              <span class="control-desc">Steer drill (Vertical mode)</span>
+            </div>
+            <div class="control-item">
+              <kbd class="control-key text-yellow">↑ ↓</kbd>
+              <span class="control-desc">Steer drill (Horizontal mode)</span>
+            </div>
+            <div class="control-item">
+              <kbd class="control-key text-yellow">T</kbd>
+              <span class="control-desc">Toggle between Horizontal/Vertical modes</span>
+            </div>
+            <div class="control-item">
+              <kbd class="control-key text-yellow">R</kbd>
+              <span class="control-desc">Restart the current drill hole</span>
+            </div>
+            <div class="control-item">
+              <kbd class="control-key text-yellow">H</kbd>
+              <span class="control-desc">Open this help modal</span>
+            </div>
+            <div class="control-item">
+              <kbd class="control-key text-yellow">ESC</kbd>
+              <span class="control-desc">Close help modal</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3 class="text-cyan">Visual Indicators</h3>
+          <ul>
+            <li><span class="text-cyan"><strong>Cyan line:</strong></span> The planned drillhole path you should follow</li>
+            <li><span class="text-orange"><strong>Orange line:</strong></span> Your actual drilling path</li>
+            <li><span class="text-green"><strong>Green zone:</strong></span> Tight tolerance corridor (<strong>±4m</strong>) - Optimal drilling, <strong>$500/sec</strong> revenue</li>
+            <li><span class="text-yellow"><strong>Yellow zone:</strong></span> OK tolerance corridor (<strong>±10m</strong>) - Acceptable drilling, <strong>$200/sec</strong> revenue</li>
+            <li><span class="text-red"><strong>Red warning:</strong></span> Outside tolerance - Costs <strong>$800/sec</strong> in remediation and delays schedule</li>
+            <li><strong>Deviation meter:</strong> Shows how far off-plan you currently are (top-left HUD)</li>
+            <li><strong>Outside timer:</strong> Counts time spent outside tolerance (max <strong>3.5 seconds</strong> before failure)</li>
+            <li><strong>Financial panel:</strong> Real-time revenue, costs, and net profit (top-right HUD)</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3 class="text-cyan">Pro Tips</h3>
+          <ul>
+            <li><strong>Small corrections work best.</strong> The drill has inertia—gentle, continuous steering is more effective than sharp turns.</li>
+            <li><strong>Look ahead.</strong> Anticipate the planned path's curves before you reach them. Reactive steering leads to oscillation.</li>
+            <li><strong>Green is gold.</strong> Time in the tight corridor dramatically improves your net profit and can recover schedule delays.</li>
+            <li><strong>Brief excursions are OK.</strong> You can dip outside the yellow zone briefly to correct your path, but return quickly.</li>
+            <li><strong>Watch your heading.</strong> The heading indicator (white line from drill head) shows where you're pointed, not where you are.</li>
+            <li><strong>Completion bonuses matter.</strong> Drill with <strong>90%+ accuracy</strong> for a <strong>$5,000 bonus</strong>. Poor accuracy (&lt;50%) incurs a <strong>$10,000 penalty</strong>.</li>
+            <li><strong>Try both modes.</strong> Horizontal and vertical drilling have different control schemes—master both for complete proficiency!</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="help-close-footer" class="control-btn">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
